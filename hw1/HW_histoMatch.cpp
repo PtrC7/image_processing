@@ -98,10 +98,9 @@ histoMatchApprox(ImagePtr I1, ImagePtr targetHisto, ImagePtr I2)
 	// copy image header (width, height) of input image I1 to output image I2
 	IP_copyImageHeader(I1, I2);
 	int i, lut[MXGRAY];
-	int total, Havg = 0, h1[MXGRAY];
+	int total, h1[MXGRAY];
 	ChannelPtr<uchar> in, out;
 	ChannelPtr<int> h2;
-	double scale;
 	int type;
 	int normalH[MXGRAY], normalT[MXGRAY], runningH[MXGRAY], runningT[MXGRAY];
 
@@ -110,15 +109,19 @@ histoMatchApprox(ImagePtr I1, ImagePtr targetHisto, ImagePtr I2)
 	int h = I1->height();
 	total = w * h;
 
-	// scale target histogram
+	/*
+	int Havg = 0;
 	IP_getChannel(targetHisto, 0, h2, type);
-	for (i = 0; i < MXGRAY; i++)
+	for (i = 0; i < MXGRAY; i++) {
 		Havg += h2[i];
-	scale = (double)total / Havg;
+	}
+	double scale = (double)total / Havg;
 
-	if (scale != 1)
-		for (i = 0; i < MXGRAY; i++)
+	if (scale != 1) {
+		for (i = 0; i < MXGRAY; i++) {
 			h2[i] *= scale;
+		}
+	}*/
 
 	// compute normalized histogram
 	IP_getChannel(I1, 0, in, type);
@@ -130,7 +133,7 @@ histoMatchApprox(ImagePtr I1, ImagePtr targetHisto, ImagePtr I2)
 		normalH[i] = h1[i] / total; // normalized histogram
 
 	// normalize target histogram
-	IP_getChannel(targetHisto, 0, in, type);
+	IP_getChannel(targetHisto, 0, h2, type);
 	for (i = 0; i < MXGRAY; i++)
 		 normalT[i] = h2[i] / total;
 
