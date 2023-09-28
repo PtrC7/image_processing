@@ -24,7 +24,7 @@ HW_contrast(ImagePtr I1, double brightness, double contrast, ImagePtr I2)
     // init lookup table
     int i, lut[MXGRAY];
     for(int i = 0; i < MXGRAY; i++){
-        lut[i] = (int) CLIP(round(contrast*(i-128)) + 128 + brightness,0,MaxGray);
+        lut[i] = MIN(MAX(round(contrast*(i-128)) + 128 + brightness, 0), 255);
     }
 
     // declarations for image channel pointers and datatype

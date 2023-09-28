@@ -11,6 +11,6 @@ void
 HW_histoStretch(ImagePtr I1, int t1, int t2, ImagePtr I2)
 {
 
-// PUT YOUR CODE HERE
+    
 
 }
