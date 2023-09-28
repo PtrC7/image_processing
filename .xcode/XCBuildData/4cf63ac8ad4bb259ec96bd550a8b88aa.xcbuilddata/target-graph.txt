@@ -1,0 +1,4 @@
+Target dependency graph (2 targets)
+Qt Preprocess in CS470_HW, no dependencies
+CS470_HW in CS470_HW, depends on:
+Qt Preprocess in CS470_HW (explicit)
