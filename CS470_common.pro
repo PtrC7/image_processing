@@ -33,9 +33,11 @@ macx{
 	} else {
 		LIBS += -lIP_d 
 	}
+    CONFIG += sdk_no_version_check
+    CONFIG += c++11
 	QMAKE_SONAME_PREFIX = @executable_path/../Frameworks
 	QMAKE_LFLAGS   += -Wl,-rpath,@executable_path/../Frameworks
-	QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.11
+    QMAKE_MACOSX_DEPLOYMENT_TARGET = 13.6
 	ICON = CS470.icns
 }
 
