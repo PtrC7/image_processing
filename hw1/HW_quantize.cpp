@@ -20,10 +20,10 @@ HW_quantize(ImagePtr I1, int levels, bool dither, ImagePtr I2)
 
     // init lookup table
     int i, lut[MXGRAY];
-    int scale = MXGRAY / levels;
+    double scale = MXGRAY / levels;
     int bias = 128 / levels;
     for (i = 0; i < MXGRAY; i++)
-        lut[i] = scale * (i / scale);
+        lut[i] = scale * (int) (i / scale);
 
     // declarations for image channel pointers and datatype
     ChannelPtr<uchar> p1, p2;
@@ -35,7 +35,12 @@ HW_quantize(ImagePtr I1, int levels, bool dither, ImagePtr I2)
             if (dither) {
                 double randn = (double)rand() / RAND_MAX; // normalized random number [0,1]
                 int jitter = bias * (1 - (2 * randn)); // scaled randomized number by bias [-bias, bias]
-                int out = jitter + *p1++; // added jitter to input
+                int out = jitter + *p1++; // added jitter to output
+                // checks for clipping
+                if (out > 255)
+                    out = 255;
+                if (out < 0)
+                    out = 0;
                 *p2++ = lut[out];
             }
             else
