@@ -1,6 +1,13 @@
 #include "IP.h"
 using namespace IP;
 
+// CopyRowToCircBuffer() methods
+void floydCircBuffer(int row, int* buf[], ChannelPtr<uchar> start, int w, int h);
+void jarvisCircBuffer(int row, int* buf[], ChannelPtr<uchar> start, int w, int h);
+
+void floydMethod(int* in1, int* in2, int e);
+void jarvisMethod(int* in1, int* in2, int* in3, int e);
+
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // HW_errDiffusion:
 //
@@ -29,7 +36,256 @@ using namespace IP;
 void
 HW_errDiffusion(ImagePtr I1, int method, bool serpentine, double gamma, ImagePtr I2)
 {
+	// apply gamma correction to I1
+	ImagePtr I3;
+	IP_gammaCorrect(I1, gamma, I3);
 
-// PUT YOUR CODE HERE
+	// copy image header (width, height) of input image I3 to output image I2
+	IP_copyImageHeader(I3, I2);
+	int thr = MXGRAY / 2; // init threshold value
 
+	// init vars for width, height, and total number of pixels
+	int w = I3->width();
+	int h = I3->height();
+	int total = w * h;
+
+	// init lookup table
+	int i, lut[MXGRAY];
+	for (i = 0; i < thr && i < MXGRAY; ++i) lut[i] = 0;
+	for (; i < MXGRAY; ++i) lut[i] = MaxGray;
+
+	// declarations for image channel pointers and datatype
+	ChannelPtr<uchar> in, out;
+	int type;
+
+	// Floyd Method
+	if (method == 0) {
+		int* in1, * in2, * buf[2] = {};
+		buf[0] = new int[w + 2];
+		buf[1] = new int[w + 2];
+
+		for (int i = 0; i < w + 2; i++) {
+			buf[0][i] = 0;
+			buf[1][i] = 0;
+		}
+
+		// Raster scan
+		if (!serpentine) {
+			for (int ch = 0; IP_getChannel(I3, ch, in, type); ch++) {
+				IP_getChannel(I2, ch, out, type);
+
+				floydCircBuffer(0, buf, in, w, h); // copy row 0 to circular buffer
+				for (int y = 0; y < h; y++) { // visit all input rows
+					floydCircBuffer(y + 1, buf, in, w, h); // copy next row to circ buffer
+
+					in1 = buf[y % 2] + 1; // circ buffer ptr for current row
+					in2 = buf[(y + 1) % 2] + 1; // circ buffer ptr for 1 row below
+
+					for (int x = 0; x < w; x++) {
+						int index = CLIP(*in1, 0, 255); // threshold
+						*out = lut[index];
+
+						int e = *in1 - *out; // eval error
+
+						floydMethod(in1, in2, e);
+
+						in1++; // advance circ buffer ptrs
+						in2++; // advance circ buffer ptrs
+						out++; // advance output ptr
+					}
+				}
+			}
+		}
+		// Serpentine scan
+		else {
+			for (int ch = 0; IP_getChannel(I3, ch, in, type); ch++) {
+				IP_getChannel(I2, ch, out, type);
+
+				floydCircBuffer(0, buf, in, w, h); // copy row 0 to circular buffer
+				for (int y = 0; y < h; y++) { // visit all input rows
+					floydCircBuffer(y + 1, buf, in, w, h); // copy next row to circ buffer
+
+					// left to right scan
+					if (y % 2 == 0) {
+						in1 = buf[y % 2] + 1; // circ buffer ptr
+						in2 = buf[(y + 1) % 2] + 1; // circ buffer ptr
+
+						for (int x = 0; x < w; x++) {
+							int index = CLIP(*in1, 0, 255); // threshold
+							*out = lut[index];
+
+							int e = *in1 - *out; // eval error
+
+							floydMethod(in1, in2, e);
+
+							in1++; // advance circ buffer ptrs
+							in2++; // advance circ buffer ptrs
+							out++; // advance output ptr
+						}
+					}
+					// right to left scan
+					else {
+						in1 = buf[y % 2] + w; // circ buffer ptr at the end
+						in2 = buf[(y + 1) % 2] + w; // circ buffer ptr at the end
+						out += w - 1; // make output pointer go to end of row
+
+						for (int x = 0; x < w; x++) {
+							int index = CLIP(*in1, 0, 255); // threshold
+							*out = lut[index];
+
+							int e = *in1 - *out; // eval error
+
+							floydMethod(in1, in2, e);
+
+							in1--; // advance circ buffer ptrs
+							in2--; // advance circ buffer ptrs
+							out--; // advance output ptr
+						}
+						out += w + 1; // point to next row
+					}
+
+				}
+			}
+		}
+	}
+	// Jarvis Method
+	else {
+		int* in1, * in2, * in3, * buf[3] = {};
+		buf[0] = new int[w + 4];
+		buf[1] = new int[w + 4];
+		buf[2] = new int[w + 4];
+
+		for (int i = 0; i < w + 2; i++) {
+			buf[0][i] = 0;
+			buf[1][i] = 0;
+			buf[2][i] = 0;
+		}
+
+		// Raster scan
+		if (!serpentine) {
+			for (int ch = 0; IP_getChannel(I3, ch, in, type); ch++) {
+				IP_getChannel(I2, ch, out, type);
+
+				jarvisCircBuffer(0, buf, in, w, h); // copy row 0 to circular buffer
+				jarvisCircBuffer(1, buf, in, w, h); // copy row 1 to circular buffer
+				for (int y = 0; y < h; y++) { // visit all input rows
+					jarvisCircBuffer(y + 2, buf, in, w, h); // copy next row to circ buffer
+
+					in1 = buf[y % 2] + 2; // circ buffer ptr
+					in2 = buf[(y + 1) % 3] + 2; // circ buffer ptr
+					in3 = buf[(y + 2) % 3] + 2;
+
+					for (int x = 0; x < w; x++) {
+						int index = CLIP(*in1, 0, 255); // threshold
+						*out = lut[index];
+
+						int e = *in1 - *out; // eval error
+
+						jarvisMethod(in1, in2, in3, e);
+
+						in1++; // advance circ buffer ptrs
+						in2++; // advance circ buffer ptrs
+						in3++; // advance circ buffer ptrs
+						out++; // advance output ptr
+					}
+				}
+			}
+		}
+		// Serpentine scan
+		else {
+			for (int ch = 0; IP_getChannel(I3, ch, in, type); ch++) {
+				IP_getChannel(I2, ch, out, type);
+
+				jarvisCircBuffer(0, buf, in, w, h); // copy row 0 to circular buffer
+				jarvisCircBuffer(1, buf, in, w, h); // copy row 1 to circular buffer
+				for (int y = 0; y < h; y++) { // visit all input rows
+					jarvisCircBuffer(y + 2, buf, in, w, h); // copy next row to circ buffer
+
+					in1 = buf[y % 2] + 2; // circ buffer ptr
+					in2 = buf[(y + 1) % 3] + 2; // circ buffer ptr
+					in3 = buf[(y + 2) % 3] + 2;
+
+					// left to right scan
+					if (y % 2 == 0) {
+						int index = CLIP(*in1, 0, 255); // threshold
+						*out = lut[index];
+
+						int e = *in1 - *out; // eval error
+
+						jarvisMethod(in1, in2, in3, e);
+
+						in1++; // advance circ buffer ptrs
+						in2++; // advance circ buffer ptrs
+						in3++; // advance circ buffer ptrs
+						out++; // advance output 
+					}
+					// right to left scan
+					else {
+						in1 = buf[y % 2] + w + 1; // circ buffer ptr
+						in2 = buf[(y + 1) % 3] + w + 1; // circ buffer ptr
+						in3 = buf[(y + 2) % 3] + w + 1;
+						out += w - 1; // make output pointer go to end of row
+
+						for (int x = 0; x < w; x++) {
+							int index = CLIP(*in1, 0, 255); // threshold
+							*out = lut[index];
+
+							int e = *in1 - *out; // eval error
+
+							jarvisMethod(in1, in2, in3, e);
+
+							in1--; // advance circ buffer ptrs
+							in2--; // advance circ buffer ptrs
+							in3--; // advance circ buffer ptrs
+							out--; // advance output ptr
+						}
+						out += w + 1; // point to next row
+					}
+
+				}
+			}
+		}
+	}
+}
+
+// 2 row circular buffer
+void floydCircBuffer(int row, int* buf[], ChannelPtr<uchar> start, int w, int h) {
+	if (row >= h) return;
+	int* buffer = buf[row % 2];
+	start = (start + w * row);
+	for (int i = 1; i < w + 1; i++)
+		buffer[i] = *start++;
+}
+
+// 3 row circular buffer
+void jarvisCircBuffer(int row, int* buf[], ChannelPtr<uchar> start, int w, int h) {
+	if (row >= h) return;
+	int* buffer = buf[row % 3];
+	start = (start + w * row);
+	for (int i = 2; i < w + 2; i++)
+		buffer[i] = *start++;
+}
+
+void floydMethod(int* in1, int* in2, int e) {
+	in1[1] += (e * 7 / 16.); // add error to E
+	in2[-1] += (e * 3 / 16.); // add error to SW
+	in2[0] += (e * 5 / 16.); // add error to S
+	in2[1] += (e * 1 / 16.); // add error to SE
+}
+
+void jarvisMethod(int* in1, int* in2, int* in3, int e) {
+	in1[1] += (e * 7 / 48.); // add error to E
+	in1[1] += (e * 5 / 48.); // add error to E2
+
+	in2[-2] += (e * 3 / 48.); // add error to SW
+	in2[-1] += (e * 5 / 48.); // add error to SW
+	in2[0] += (e * 7 / 48.); // add error to S
+	in2[1] += (e * 5 / 48.); // add error to SE
+	in2[2] += (e * 3 / 48.); // add error to SE
+
+	in3[-2] += (e * 1 / 48.); // add error to SSW
+	in3[-1] += (e * 3 / 48.); // add error to SSW
+	in3[0] += (e * 5 / 48.); // add error to SS
+	in3[1] += (e * 3 / 48.); // add error to SSE
+	in3[2] += (e * 1 / 48.); // add error to SSE
 }
