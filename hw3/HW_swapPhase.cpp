@@ -18,6 +18,7 @@ complexS, * complexP;
 extern void HW_fft2MagPhase(ImagePtr Ifft, ImagePtr Imag, ImagePtr Iphase);
 extern void HW_MagPhase2fft(ImagePtr Imag, ImagePtr Iphase, ImagePtr Ifft);
 
+extern void padImage(ImagePtr I1, ImagePtr I1Padded);
 extern void fft1D(complexP q1, int dir, complexP q2);
 extern void fft1DRow(ImagePtr I1, ImagePtr Image1, int dir);
 extern void fft1DCol(ImagePtr I1, ImagePtr Image1, ImagePtr Image2, int dir);
@@ -46,14 +47,34 @@ HW_swapPhase(ImagePtr I1, ImagePtr I2, ImagePtr II1, ImagePtr II2)
 	int h1 = I1->height();
 	int w2 = I2->width();
 	int h2 = I2->height();
+	int total1 = w1 * h1;
+	int total2 = w2 * h2;
 
 	// makes sure I1 and I2 have identical dimensions
 	if (w1 != w2 || h1 != h2) {
 		return;
 	}
 
-	IP_copyImageHeader(I1, II1);
-	IP_copyImageHeader(I2, II2);
+	ImagePtr I3, I4;
+	// Check for padding
+	if (ceil(log2(w1)) != floor(log2(w1)) || ceil(log2(h1)) != floor(log2(h1))) {
+		padImage(I1, I3);
+		// updates width and height with new padded image
+		w1 = I3->width();
+		h1 = I3->height();
+		total1 = w1 * h1;
+	}
+
+	if (ceil(log2(w2)) != floor(log2(w2)) || ceil(log2(h2)) != floor(log2(h2))) {
+		padImage(I2, I4);
+		// updates width and height with new padded image
+		w2 = I4->width();
+		h2 = I4->height();
+		total2 = w2 * h2;
+	}
+
+	IP_copyImageHeader(I3, II1);
+	IP_copyImageHeader(I4, II2);
 
 	ImagePtr tempI1, tempI2;
 
@@ -63,11 +84,11 @@ HW_swapPhase(ImagePtr I1, ImagePtr I2, ImagePtr II1, ImagePtr II2)
 	tempI2->allocImage(w2, h2, FFT_TYPE);
 
 	// fft of I1
-	fft1DRow(I1, tempI1, 0);
-	fft1DCol(I1, tempI1, Ifft1, 0);
+	fft1DRow(I3, tempI1, 0);
+	fft1DCol(I3, tempI1, Ifft1, 0);
 	// fft of I2
-	fft1DRow(I2, tempI2, 0);
-	fft1DCol(I2, tempI2, Ifft2, 0);
+	fft1DRow(I4, tempI2, 0);
+	fft1DCol(I4, tempI2, Ifft2, 0);
 
 
 	// compute magnitude and phase from real and imaginary FFT channels
@@ -94,11 +115,11 @@ HW_swapPhase(ImagePtr I1, ImagePtr I2, ImagePtr II1, ImagePtr II2)
 // PUT YOUR CODE HERE...
 	ImagePtr tempIfft1, tempIfft2;
 
-	Ifft1DRow(I1, Ifft1, tempIfft1, 1);
-	Ifft1DCol(I1, Ifft1, II1, 1);
+	Ifft1DRow(I3, Ifft1, tempIfft1, 1);
+	Ifft1DCol(I3, Ifft1, II1, 1);
 
-	Ifft1DRow(I2, Ifft2, tempIfft2, 1);
-	Ifft1DCol(I2, Ifft2, II2, 1);
+	Ifft1DRow(I4, Ifft2, tempIfft2, 1);
+	Ifft1DCol(I4, Ifft2, II2, 1);
 
 	// extract magnitude from resulting images
 	
@@ -119,8 +140,8 @@ HW_swapPhase(ImagePtr I1, ImagePtr I2, ImagePtr II1, ImagePtr II2)
 	// allocate uchar image and cast float channel to uchar for mag2
 
 // PUT YOUR CODE HERE...
-	ChannelPtr<uchar> mag2Channel = mag1[0];
-	ChannelPtr<float> mag2Float = Imag1[0];
+	ChannelPtr<uchar> mag2Channel = mag2[0];
+	ChannelPtr<float> mag2Float = Imag2[0];
 	for (int i = 0; i < w2 * h2; i++) {
 		*mag2Channel++ = (uchar)(*mag2Float++);
 	}
@@ -169,52 +190,53 @@ void Ifft1DRow(ImagePtr I1, ImagePtr Image1, ImagePtr Image2, int dir) {
 void Ifft1DCol(ImagePtr I1, ImagePtr Image1, ImagePtr Image2, int dir) {
 	int w = I1->width();
 	int h = I1->height();
-	ChannelPtr<float> real, imag, real2, imag2;
+	ChannelPtr<float> real, imag;
+	ChannelPtr<uchar> p1;
+	int type;
 
 	Image2->allocImage(w, h, FFT_TYPE);
 
 	real = Image1[0];
 	imag = Image1[1];
-	real2 = Image2[0];
-	imag2 = Image2[1];
 
-	complexP q1, q2;
-	complexS c1, c2;
-	q1 = &c1;
-	q2 = &c2;
-	q1->len = w;
-	q1->real = new float[w];
-	q1->imag = new float[w];
-	q2->len = w;
-	q2->real = new float[w];
-	q2->imag = new float[w];
+	for (int ch = 0; IP_getChannel(Image2, ch, p1, type); ++ch)
+	{
+		complexP q1, q2;
+		complexS c1, c2;
+		q1 = &c1;
+		q2 = &c2;
+		q1->len = w;
+		q1->real = new float[w];
+		q1->imag = new float[w];
+		q2->len = w;
+		q2->real = new float[w];
+		q2->imag = new float[w];
 
-	// fft by columns
-	for (int j = 0; j < w; j++) {
-		// create temp storage for real and imaginary
-		ChannelPtr<float> tmpR = real;
-		ChannelPtr<float> tmpI = imag;
+		// fft by columns
+		for (int j = 0; j < w; j++) {
+			// create temp storage for real and imaginary
+			ChannelPtr<float> tmpR = real;
+			ChannelPtr<float> tmpI = imag;
 
-		// stores real and imaginary values into q1
-		for (int i = 0; i < h; i++) {
-			q1->real[i] = *tmpR;
-			q1->imag[i] = *tmpI;
-			// goes to next row after each column
-			if (i < h - 1) {
-				tmpR += w;
-				tmpI += w;
+			// stores real and imaginary values into q1
+			for (int i = 0; i < h; i++) {
+				q1->real[i] = *tmpR;
+				q1->imag[i] = *tmpI;
+				// goes to next row after each column
+				if (i < h - 1) {
+					tmpR += w;
+					tmpI += w;
+				}
 			}
-		}
 
-		// fft
-		fft1D(q1, dir, q2);
+			// fft
+			fft1D(q1, dir, q2);
 
-		// sets the output to image2 as image1 is still being changed
-		for (int k = 0; k < h; k++) {
-			*real2++ = q2->real[k];
-			*imag2++ = q2->imag[k];
+			for (int k = 0; k < h; k++) {
+				*p1++ = CLIP(q2->real[k], 0, MaxGray);
+			}
+			real++;
+			imag++;
 		}
-		real++;
-		imag++;
 	}
 }
