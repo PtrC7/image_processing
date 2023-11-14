@@ -22,8 +22,8 @@ extern void HW_fft2MagPhase(ImagePtr Ifft, ImagePtr Imag, ImagePtr Iphase);
 
 void padImage(ImagePtr I1, ImagePtr I1Padded);
 void fft1D(complexP q1, int dir, complexP q2);
-void fft1DRow(ImagePtr I1, ImagePtr Image1);
-void fft1DCol(ImagePtr I1, ImagePtr Image1, ImagePtr Image2);
+void fft1DRow(ImagePtr I1, ImagePtr Image1, int dir);
+void fft1DCol(ImagePtr I1, ImagePtr Image1, ImagePtr Image2, int dir);
 float getMin(ImagePtr I1, int total);
 float getMax(ImagePtr I1, int total);
 
@@ -57,8 +57,8 @@ HW_spectrum(ImagePtr I1, ImagePtr Imag, ImagePtr Iphase)
     ImagePtr Image1, Image2;
     Image1->allocImage(w, h, FFT_TYPE);
     Image2->allocImage(w, h, FFT_TYPE);
-    fft1DRow(I2, Image1);
-    fft1DCol(I2, Image1, Image2);
+    fft1DRow(I2, Image1, 0);
+    fft1DCol(I2, Image1, Image2, 0);
 
 	// compute magnitute and phase spectrums from FFT image
 	ImagePtr Im = NEWIMAGE;
@@ -228,7 +228,7 @@ void fft1D(complexP q1, int dir, complexP q2)
     }
 }
 
-void fft1DRow(ImagePtr I1, ImagePtr Image1) {
+void fft1DRow(ImagePtr I1, ImagePtr Image1, int dir) {
     int w = I1->width();
     int h = I1->height();
     ChannelPtr<float> real, imag;
@@ -257,7 +257,7 @@ void fft1DRow(ImagePtr I1, ImagePtr Image1) {
                 q1->real[j] = *p1++;
                 q1->imag[j] = 0;
             }
-            fft1D(q1, 0, q2);
+            fft1D(q1, dir, q2);
             
             // get the real and imaginary outputs after fft
             for (int k = 0; k < q2->len; k++) {
@@ -273,7 +273,7 @@ void fft1DRow(ImagePtr I1, ImagePtr Image1) {
     }
 }
 
-void fft1DCol(ImagePtr I1, ImagePtr Image1, ImagePtr Image2) {
+void fft1DCol(ImagePtr I1, ImagePtr Image1, ImagePtr Image2, int dir) {
     int w = I1->width();
     int h = I1->height();
     ChannelPtr<float> real, imag, real2, imag2;
@@ -315,7 +315,7 @@ void fft1DCol(ImagePtr I1, ImagePtr Image1, ImagePtr Image2) {
         }
 
         // fft
-        fft1D(q1, 0, q2);
+        fft1D(q1, dir, q2);
 
         // sets the output to image2 as image1 is still being changed
         for (int k = 0; k < h; k++) {
