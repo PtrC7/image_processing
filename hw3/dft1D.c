@@ -3,75 +3,127 @@
 #include <math.h>
 
 #define PI 3.1415927
-#define MAG(i)		(sqrt(Fr[i]*Fr[i] + Fi[i]*Fi[i]))
-#define PHASE(i)	(atan2(Fi[i], Fr[i]))
+#define MAG(i)    (sqrt(Fr[i]*Fr[i] + Fi[i]*Fi[i]))
+#define PHASE(i)  (atan2(Fi[i], Fr[i]))
 
-void compute_dft(int N, int dir, double* fr, double* fi, double* Fr, double* Fi) {
+// Function declarations
+void forwardDFT(FILE* input, FILE* output, int N);
+void inverseDFT(FILE* input, FILE* output, int N);
+
+int main(int argc, char* argv[]) {
+    if (argc == 4) {
+        FILE* input, * output;
+        char* in = argv[1];
+        int dir = atoi(argv[2]);
+        char* out = argv[3];
+        input = fopen(in, "r");
+        output = fopen(out, "w");
+
+        int width, height;
+        fscanf(input, "%d\t%d", &width, &height);
+        fprintf(output, "%d\t%d\n", width, height);
+
+        if (height > 0) {
+            if (dir == 0) {
+                // Forward DFT operation
+                forwardDFT(input, output, height);
+            }
+            else if (dir == 1) {
+                // Inverse DFT operation
+                inverseDFT(input, output, height);
+            }
+            else {
+                printf("Invalid Dir\n");
+                printf("Dir = 0, Forward DFT\n");
+                printf("Dir = 1, Inverse DFT\n");
+            }
+        }
+        else {
+            printf("Invalid height.\n");
+        }
+
+        fclose(input);
+        fclose(output);
+    }
+    else {
+        printf("Invalid Arguments.\n");
+        printf("Format: ./dtft1D Input Dir Output\n");
+    }
+    return 0;
+}
+
+// Function for forward DFT
+void forwardDFT(FILE* input, FILE* output, int N) {
     int u, x;
     double c, s, real, imag;
 
+    float* Fr = malloc(sizeof(float) * N);
+    float* Fi = malloc(sizeof(float) * N);
+    float* fr = malloc(sizeof(float) * N);
+    float* fi = malloc(sizeof(float) * N);
+
+    // Read input values
+    for (x = 0; x < N; x++) {
+        fscanf(input, "%f\t%f", &fr[x], &fi[x]);
+    }
+
+    // Compute forward DFT
     for (u = 0; u < N; u++) {
         real = imag = 0;
+
         for (x = 0; x < N; x++) {
-            c = cos(2.0 * PI * u * x / N);
-            s = (dir == 0) ? -sin(2.0 * PI * u * x / N) : sin(2.0 * PI * u * x / N);
+            c = cos(2. * PI * u * x / N);
+            s = -sin(2. * PI * u * x / N);
             real += (fr[x] * c - fi[x] * s);
             imag += (fr[x] * s + fi[x] * c);
         }
+
         Fr[u] = real / N;
         Fi[u] = imag / N;
-    }
-}
-
-int main(int argc, char* argv[]) {
-    if (argc != 4) {
-        fprintf(stderr, "Usage: %s <input_file> <direction> <output_file>\n", argv[0]);
-        fprintf(stderr, "Direction: 0 - Forward DFT, 1 - Inverse DFT\n");
-        return 1;
+        fprintf(output, "%f\t%f\n", Fr[u], Fi[u]);
     }
 
-    char* input_file = argv[1];
-    int dir = atoi(argv[2]);
-    char* output_file = argv[3];
-
-    FILE* file = fopen(input_file, "r");
-    if (file == NULL) {
-        perror("Error opening input file");
-        return 1;
-    }
-
-    int N;
-    fscanf(file, "%*d %d", &N); // Read N from the file
-    double* fr = (double*)malloc(N * sizeof(double));
-    double* fi = (double*)malloc(N * sizeof(double));
-    double* Fr = (double*)malloc(N * sizeof(double));
-    double* Fi = (double*)malloc(N * sizeof(double));
-
-    for (int x = 0; x < N; x++) {
-        fscanf(file, "%lf %lf", &fr[x], &fi[x]);
-    }
-
-    fclose(file);
-
-    compute_dft(N, dir, fr, fi, Fr, Fi);
-
-    file = fopen(output_file, "w");
-    if (file == NULL) {
-        perror("Error opening output file");
-        return 1;
-    }
-
-    fprintf(file, "2 %d\n", N);
-    for (int u = 0; u < N; u++) {
-        fprintf(file, "%f %f\n", Fr[u], Fi[u]);
-    }
-
-    fclose(file);
-
-    free(fr);
-    free(fi);
+    // Free allocated memory
     free(Fr);
     free(Fi);
+    free(fr);
+    free(fi);
+}
 
-    return 0;
+// Function for inverse DFT
+void inverseDFT(FILE* input, FILE* output, int N) {
+    int u, x;
+    double c, s, real, imag;
+
+    float* Fr = malloc(sizeof(float) * N);
+    float* Fi = malloc(sizeof(float) * N);
+    float* fr = malloc(sizeof(float) * N);
+    float* fi = malloc(sizeof(float) * N);
+
+    // Read input values
+    for (x = 0; x < N; x++) {
+        fscanf(input, "%f\t%f", &Fr[x], &Fi[x]);
+    }
+
+    // Compute inverse DFT
+    for (x = 0; x < N; x++) {
+        real = imag = 0;
+
+        for (u = 0; u < N; u++) {
+            c = cos(2. * PI * u * x / N);
+            s = sin(2. * PI * u * x / N);
+            real += (Fr[u] * c - Fi[u] * s);
+            imag += (Fr[u] * s + Fi[u] * c);
+        }
+
+        fr[x] = real;
+        fi[x] = imag;
+        fprintf(output, "%f\t%f\n", fr[x], fi[x]);
+    }
+
+    // Free allocated memory
+    free(Fr);
+    free(Fi);
+    free(fr);
+    free(fi);
 }
