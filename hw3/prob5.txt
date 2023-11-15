@@ -1,0 +1,8 @@
+a) The results tell us that the Fourier transform of an impulse function is a constant value on every frequency.
+b) Yes, the magnitude spectrum of b(x) is a sinc function.
+c) Scaling the spatial domain affects the frequency domain inversely.
+d) A constant signal on the spatial domain will give an impulse in the frequency domain at f = 0. If there is no frequency, the only component contributing is 0.
+e) The Fourier transform of e(x) differs from that of b(x) by the two spikes the individual FT of cos produces. In this example, we're testing the additive property of FT. The individual FT of a box plus a cos is the same as adding them together or individually, which is why we see the FT of a box which is a sinc added to the FT of a cos, which gives the two spikes.
+f) The Fourier transform of b(x) changes after b(x) is scaled in amplitude by producing a taller box which on the frequency domain is the sinc function getting taller as well by the same amount. 
+g) The effects of shifting b(x) to the right by 16 pixels are that the magnitude spectrum does not change but the phase spectrum does shift. 
+h) The magnitude spectrum stays the same since the input was only shifted but the phase spectrum does shift.
