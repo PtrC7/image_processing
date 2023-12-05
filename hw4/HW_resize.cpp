@@ -314,6 +314,7 @@ HW_resize(ImagePtr I1, int ww, int hh, int kernelID, double param, ImagePtr I2)
 	ChannelPtr<uchar> src, dst, tmp;
 	for(int ch = 0; IP_getChannel(II, ch, src, t); ch++) {
 		IP_getChannel(I2, ch, dst, t);
+		// create temp pointer for between row and column resizing
 		IP_getChannel(I3, ch, tmp, t);
 
 		// horizontal pass scales rows
