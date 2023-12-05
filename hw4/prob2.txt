@@ -1,0 +1,31 @@
+Over what scale factors are the various kernels acceptable?
+
+	Used eye50.pgm
+	Box: 4x
+	Triangle: 5x
+	Cubic: 7x
+	Lanczos: 10x
+	Hann: 10x
+	Hamming: 10x
+
+Describe the artifacts that appear, including their location and structure.
+
+	As we make the image bigger, the artifacts start to appear more. 
+	These artifacts become more visible around edges and areas with high contrast 
+	such as the color difference between the eye and person's skin in eye50.pgm. 
+
+Compare the results between the point sampling (nearest neighbor) and a higher quality filter when minifying star.pgm or ramp.pgm.
+
+	When minifying star.pgm using point sampling, it creates 
+	distortions in the rings closer to the center. When we switch to the 
+	higher quality filters, it removes these distortions by blurring it into the image. 
+	This makes the image appear the same as the original just minimized.
+	When we minify ramp.pgm the point sampling and the higher quality filters both have 	similar output image.
+
+Why does point sampling work well for the ramp.pgm image and not for star.pgm?
+
+	Point sampling works well for the ramp.pgm as the color smoothly transitions from
+	black to white. The information that is lost when miniying isn't as noticable as
+	it is for star.pgm. In star.pgm, the colors quickly switch from black to white
+	which will create the distortions due to aliasing in the inner circle that we see 
+	when minifying. 
